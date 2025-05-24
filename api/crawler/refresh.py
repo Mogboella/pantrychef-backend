@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 
 from fastapi import logger
 from api.core.database import get_supabase
@@ -13,7 +13,7 @@ async def refresh_outdated_recipes(days_old=7):
     old_recipes = (
         supabase.table("recipes")
         .select("id,source_url,title")
-        .lt("last_updated", datetime.now() - datetime.timedelta(days=days_old))
+        .lt("last_updated", datetime.now() - timedelta(days=days_old))
         .execute()
     )
 

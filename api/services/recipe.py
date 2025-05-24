@@ -33,7 +33,7 @@ class RecipeService:
                     {
                         "query": query.lower(),
                         "data": recipe.dict(),
-                        "expires_at": datetime.now() + datetime.timedelta(days=1),
+                        "expires_at": datetime.now() + timedelta(days=1),
                     }
                     for recipe in raw_recipes
                 ]
@@ -41,4 +41,15 @@ class RecipeService:
 
             await recipe_crawler._save_to_supabase(recipe for recipe in raw_recipes)
 
+            # # Insert to DB
+            # db_recipe = await supabase.from_("recipes").insert(recipe.model_dump()).execute()
+            # recipe_id = db_recipe.data[0]["id"]
+
+            # # Generate embedding
+            # embedding = get_embedding(f"{recipe.title} {recipe.ingredients}")
+            # await supabase.from_("recipe_embeddings").insert({
+            #     "recipe_id": recipe_id,
+            #     "embedding": embedding,
+            #     "ingredients_text": normalize_ingredients(recipe.ingredients)
+            # })
         return raw_recipes
