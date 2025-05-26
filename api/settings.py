@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    PORT: int = int(os.getenv("PORT",8000))
 
     BRIGHT_DATA_PROXY_HOST: str = os.getenv("BRIGHT_DATA_PROXY_HOST", "")
     BRIGHT_DATA_PROXY_PORT: str = os.getenv("BRIGHT_DATA_PROXY_PORT", "")
