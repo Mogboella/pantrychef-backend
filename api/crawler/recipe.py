@@ -127,9 +127,12 @@ class RecipeCrawler:
             image_url = await self._get_image_url(page)
 
             if not ingredients:
-                logger.warning("Failed normal scraping, trying LLM fallback")
-                page_content = await page.content()
-                ingredients = await self._llm_parse_ingredients(page_content)
+                try:
+                    logger.warning("Failed normal scraping, trying LLM fallback")
+                    page_content = await page.content()
+                    ingredients = await self._llm_parse_ingredients(page_content)
+                except Exception as e:
+                    ingredients = None
 
             if ingredients and title:
                 recipe = Recipe(
@@ -161,7 +164,7 @@ class RecipeCrawler:
                     "role": "system",
                     "content": "Extract recipe ingredients from this HTML. Return JSON with list of ingredients (name, quantity, unit).",
                 },
-                {"role": "user", "content": html[:15000]},  # Truncate to fit context
+                {"role": "user", "content": html[:15000]},  
             ],
         )
 
