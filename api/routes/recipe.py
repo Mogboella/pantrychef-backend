@@ -1,11 +1,13 @@
-from typing import List
-from fastapi import APIRouter, HTTPException
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException
 from api.core.database import get_supabase
 
-from api.core.rec_engine import generate_recipe_variation
-from api.models.requests import RecipeRequest
+from api.dependecies import get_session_id
+from api.models.requests import RecipeFilters, RecipeRequest
 from api.models.schemas import Recipe, RecipeDB, ScoredRecipe
+from api.services.pantry import PantryService
 from api.services.recipe import RecipeService
+from api.services.recommendation import RecommendationService
 from api.services.session import SessionService
 
 import logging
@@ -15,96 +17,72 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 session_service = SessionService()
+recipe_service = RecipeService()
+recom_service = RecommendationService()
+pantry_service = PantryService()
 
 supabase = get_supabase()
 
+@router.get("/", response_model=List[Recipe])
+async def list_recipes(
+    session_id: str = Depends(get_session_id),
+    query: Optional[str] = None,
+    cuisine: Optional[str] = None,
+    max_time: Optional[int] = None,
+    max_missing: Optional[int] = None
+):
+    """Search with filters"""
+    filters = RecipeFilters(
+        cuisine=cuisine,
+        max_time=max_time,
+        max_missing=max_missing
+    ).dict(exclude_none=True)
 
-@router.post(
-    "/recommend",
-    summary="Get Recipe Recommendations",
-    description="Recommend recipes based on pantry items",
-    response_description="List of recommended recipes",
-    response_model=List[ScoredRecipe],
-)
-async def recommend_recipes(request: RecipeRequest):
-    try:
-        session = await session_service.get_session(request.session_id)
-        ingredients = session["session_data"]["pantry_items"]
+   
+    if query is not None:
+        await recipe_service.scrape_recipes(query)
 
-        recipe_service = RecipeService()
-
-        # Get recommendations
-        # recommendations = await get_recommendations(
-        #     pantry_items=pantry_items,
-        #     filters=request.filters
-        # )
-
-        # return recommendations
-
-        return await recipe_service.scrape_recipes(query=ingredients)
+    try :
+        pantry_items_data = await pantry_service.get_pantry_items(session_id)
+        pantry_items = [item.normalized_name for item in pantry_items_data]
+        recommendations = await recom_service.get_recommendations(
+            pantry_items, filters, query
+        )
     except Exception as e:
-        logger.exception("Failed to recommend recipes")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to Generate Recommendations: {e}")
+    
+    return recommendations
 
+@router.post("/recommend")
+async def get_recommended_recipes(
+    session_id: str = Depends(get_session_id),
+    max_missing: Optional[int] = None,
+    min_score: Optional[float] = 0.4
+    ):
+    """Get recipes sorted by pantry match score"""
+    filters = {
+        "max_missing": max_missing,
+        "min_score": min_score
+    }
 
-@router.post(
-    "/search",
-    summary="Get Recipe by Searching for Ingredients",
-    description="Returns recipes that can be made with the provided ingredients",
-    response_description="List of scraped recipes",
-    response_model=List[RecipeDB],
-)
-async def search_recipes(query: str, session_id: str):
-    try:
-        session = await session_service.get_session(session_id)
-        ingredients = session["session_data"]["pantry_items"]
-
-        recipe_service = RecipeService()
-        recipes = await recipe_service.scrape_recipes(query=query)
-
-        # Get recommendations
-        # recommendations = await get_recommendations(
-        #     pantry_items=pantry_items,
-        #     filters=request.filters
-        # )
-
-        # return recommendations
-
-        return recipes
+    try :
+        pantry_items = await pantry_service.get_pantry_items(session_id)
+        recommendations = await recom_service.get_recommendations(
+            pantry_items, filters
+        )
     except Exception as e:
-        logger.exception("Failed to recommend recipes")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Failed to Generate Recommendations: {e}")
+    
+    return recommendations
 
 
-@router.post("/recipes/{recipe_id}/variation")
-async def generate_variation(recipe_id: str, session_id: str):
-    """Generate a recipe variation using pantry items"""
-    session = await session_service.get_session(session_id)
-    pantry_items = session["session_data"]["pantry_items"]
-
-    recipe = (
-        supabase.from_("recipes").select("*").eq("id", recipe_id).single().execute()
-    )
-
-    if not recipe.data:
-        raise HTTPException(status_code=404, detail="Recipe not found")
-
-    # Generate variation (implementation in next section)
-    variation = await generate_recipe_variation(
-        recipe=recipe.data, pantry_items=pantry_items
-    )
-
-    return variation
-
-
-@router.get("/recipes/{recipe_id}", response_model=RecipeDB)
-async def get_recipe(recipe_id: str):
-    """Get a single recipe by ID"""
-    recipe = (
-        supabase.from_("recipes").select("*").eq("id", recipe_id).single().execute()
-    )
-
-    if not recipe.data:
-        raise HTTPException(status_code=404, detail="Recipe not found")
-
-    return recipe.data
+@router.get("/{recipe_id}", response_model=RecipeDB)
+async def get_recipe(
+    recipe_id: str,
+    session_id: str = Depends(get_session_id)
+):
+    """Get detailed recipe with scoring"""
+    recipe = recipe_service.get_recipe_from_db(recipe_id)
+    if not recipe:
+        raise HTTPException(404, detail="Recipe not found")
+    return recipe

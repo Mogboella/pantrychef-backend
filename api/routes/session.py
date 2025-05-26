@@ -17,7 +17,7 @@ session_service = SessionService()
 supabase = get_supabase()
 
 
-@router.post("/sessions/", response_model=dict)
+@router.post("/", response_model=dict)
 async def create_session(pantry_items: List[str]):
     """Create a new session with pantry items"""
     session_service = SessionService()
