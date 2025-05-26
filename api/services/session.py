@@ -5,17 +5,21 @@ import uuid
 
 from fastapi import HTTPException
 from api.core.database import get_supabase
-from api.core.rec_engine import get_recommendations
 from api.models.sessions import SessionCreate, SessionData
+from api.services.recommendation import RecommendationService
 
 supabase = get_supabase()
 
 
 class SessionService:
-    async def create_session(self, pantry_items: List[str]):
+    async def create_session(self, pantry_items: List[str]=[]):
         """Create a new session with pantry items"""
         session_id = str(uuid.uuid4())
-        session_data = SessionData(pantry_items=pantry_items)
+        expires_at = datetime.now() + timedelta(days=7)
+        
+        session_data = SessionData(
+            pantry_items=pantry_items
+        )
 
         supabase.from_("sessions").insert(
             {
@@ -25,21 +29,52 @@ class SessionService:
             }
         ).execute()
 
-        # Use in recommendations
-        recommendations = await get_recommendations(
-            session_id=session_id, filters={"max_missing": 2}
-        )
-
         return {
             "session_id": session_id,
             "expires_at": datetime.now() + timedelta(days=7),
         }
 
-        # Store session
-        # db_session = (
-        #     await supabase.from_("sessions").insert(session.model_dump()).execute()
-        # )
-        # session_id = db_session.data[0]["id"]
+    async def validate_session(session_id: str) -> bool:
+        """Verify session exists and is active"""
+        if not session_id:
+            return False
+        
+        result = supabase.from_("sessions") \
+            .select("expires_at") \
+            .eq("id", session_id) \
+            .gt("expires_at", datetime.now()) \
+            .maybe_single() \
+            .execute()
+        
+        if not result.data:
+            return False
+        
+        return True
+
+    async def refresh_session(session_id: str) -> datetime:
+        """Extend session validity by 7 days from now"""
+        new_expiry = datetime.now() + timedelta(days=7)
+        supabase.from_("sessions") \
+            .update({
+                "expires_at": new_expiry,
+            }) \
+            .eq("id", session_id) \
+            .execute()
+        return new_expiry
+
+    async def cleanup_expired_sessions():
+        """Remove expired sessions and their associated data"""
+        expired = supabase.from_("sessions") \
+            .select("id") \
+            .lt("expires_at", datetime.now()) \
+            .execute()
+        
+        for session in expired.data:
+            # Delete session
+            supabase.from_("sessions") \
+                .delete() \
+                .eq("id", session["id"]) \
+                .execute()
 
     async def get_session(self, session_id: str):
         res = supabase.from_("sessions").select("*").eq("id", session_id).execute()
