@@ -51,6 +51,7 @@ async def list_recipes(
         )
     except Exception as e:
         logger.error(f"Failed to Generate Recommendations: {e}")
+        return []
     
     return recommendations
 
@@ -66,6 +67,8 @@ async def get_recommended_recipes(
         "min_score": min_score
     }
 
+    recommendations = []
+
     try :
         pantry_items = await pantry_service.get_pantry_items(session_id)
         recommendations = await recom_service.get_recommendations(
@@ -73,6 +76,7 @@ async def get_recommended_recipes(
         )
     except Exception as e:
         logger.error(f"Failed to Generate Recommendations: {e}")
+        return []
     
     return recommendations
 
