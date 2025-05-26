@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import recipe, session
+from api.routes import pantry, recipe, session
 
 # from routes import sessions, pantry
 from api.settings import Settings
@@ -30,7 +30,7 @@ app.add_middleware(
 # Include routers
 app.include_router(recipe.router, prefix="/api/recipes", tags=["recipes"])
 app.include_router(session.router, prefix="/api/sessions", tags=["sessions"])
-# app.include_router(pantry.router, prefix="/api/pantry", tags=["pantry"])
+app.include_router(pantry.router, prefix="/api/pantry", tags=["pantry"])
 # app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 
 

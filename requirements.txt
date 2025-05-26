@@ -24,6 +24,7 @@ idna==3.10
 iniconfig==2.1.0
 jiter==0.10.0
 multidict==6.4.4
+numpy==2.0.2
 openai==1.82.0
 packaging==25.0
 playwright==1.52.0
