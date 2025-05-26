@@ -1,8 +1,7 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.routes import pantry, recipe, session
-
-# from routes import sessions, pantry
 from api.settings import Settings
 
 import uvicorn
@@ -31,7 +30,6 @@ app.add_middleware(
 app.include_router(recipe.router, prefix="/api/recipes", tags=["recipes"])
 app.include_router(session.router, prefix="/api/sessions", tags=["sessions"])
 app.include_router(pantry.router, prefix="/api/pantry", tags=["pantry"])
-# app.include_router(ai.router, prefix="/api/ai", tags=["ai"])
 
 
 @app.get("/", include_in_schema=False)
@@ -40,4 +38,5 @@ async def root():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))  
+    uvicorn.run(app, host="0.0.0.0", port=port)
