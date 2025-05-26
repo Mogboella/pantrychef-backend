@@ -10,7 +10,7 @@ class CrawlerTask(BaseModel):
 
 class RecipeFilters(BaseModel):
     max_missing: Optional[int] = None
-    cuisine: Optional[List[str]] = None
+    cuisine: Optional[str] = None
     max_time: Optional[int] = None
 
 
