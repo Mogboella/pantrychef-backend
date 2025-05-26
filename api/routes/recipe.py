@@ -37,8 +37,9 @@ async def list_recipes(
         max_time=max_time,
         max_missing=max_missing
     ).dict(exclude_none=True)
+    
+    recommendations = []
 
-   
     if query is not None:
         await recipe_service.scrape_recipes(query)
 
